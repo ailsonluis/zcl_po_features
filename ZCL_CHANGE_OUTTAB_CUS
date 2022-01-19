@@ -1,0 +1,243 @@
+class ZCL_CHANGE_OUTTAB_CUS definition
+  public
+  final
+  create public .
+
+*"* public components of class ZCL_CHANGE_OUTTAB_CUS
+*"* do not include other source files here!!!
+public section.
+
+  interfaces IF_BADI_INTERFACE .
+  interfaces IF_EX_ME_CHANGE_OUTTAB_CUS .
+protected section.
+*"* protected components of class ZCL_CHANGE_OUTTAB_CUS
+*"* do not include other source files here!!!
+private section.
+*"* private components of class ZCL_CHANGE_OUTTAB_CUS
+*"* do not include other source files here!!!
+ENDCLASS.
+
+
+
+CLASS ZCL_CHANGE_OUTTAB_CUS IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_CHANGE_OUTTAB_CUS->IF_EX_ME_CHANGE_OUTTAB_CUS~FILL_OUTTAB
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IM_STRUCT_NAME                 TYPE        TYPENAME
+* | [--->] IM_ID                          TYPE        CHAR40
+* | [--->] IM_HANDLE                      TYPE        SLIS_HANDL
+* | [--->] IM_LOGGROUP                    TYPE        SLIS_LOGGR
+* | [<-->] CH_OUTTAB                      TYPE        TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method if_ex_me_change_outtab_cus~fill_outtab.
+
+* When processing this source code, you activate the following functionality:
+* The reporting transactions for purchasing documents provide three main views
+* for display: basic list, delivery schedule, and account assignment. All
+* three views contain a column "Material". If the material of a purchasing
+* document item is a manufacturer part number (MPN) then this MPN is shown
+* as "Material". The internal inventory managed material is not visible.
+* The following source code replaces the MPN by the inventory managed material.
+
+  data: ls_ekpo type ekpo.
+
+  data: r_po_features type ref to zcl_po_features,
+        ls_taxes      type zcl_po_features=>ty_tax_values.
+
+  field-symbols: "<fs_outtab>   TYPE ANY,
+    <fs_ebeln>          type ebeln,
+    <fs_ebelp>          type ebelp,
+    <fs_material>       type matnr,
+    <fs_unitnettax>     type ze_unitnettax,
+    <fs_unitprice>      type ze_unitprice,
+    <fs_nettax>         type ze_nettax,
+    <fs_netbudget>      type ze_netbudget,
+    <fs_supplierval>    type ze_suppliervalue,
+    <fs_discount>       type copacashd,
+    <fs_freigth>        type j_1bnffre,
+    <fs_icmsval>        type ze_icmsvalue,
+    <fs_icmsstval>      type ze_icmsstvalue,
+    <fs_pisval>         type ze_pisvalue,
+    <fs_cofinsval>      type ze_cofinsvalue,
+    <fs_ipival>         type ze_ipuvalue,
+    <fs_nfnett>         type j_1bnfnett,
+    <fs_nftot>          type j_1bnftot,
+    <fs_condpay>        type ze_condpay,
+    <fs_regio>          type regio,
+    <fs_warnbudget>     type icon_d,
+    <fs_dtapprovals>    type bapi_jbd_dte_dbewi,
+    <fs_plifz>          type plifz, "prazo
+    <fs_eeind>          type eeind, "remessa
+    <fs_badat>          type badat, "solicitação
+    <fs_warnemergency>  type ze_icon_emerg,
+    <fs_descremergency> type ze_descr_emerg,
+    <fs_wkurs>          type wkurs. "taxa de cambio
+
+
+* check that a purchasing document view is displayed
+  check im_struct_name eq 'MEREP_OUTTAB_PURCHDOC'   or    "view: basic list
+        im_struct_name eq 'MEREP_OUTTAB_SCHEDLINES' or    "view: delivery schedule
+        "im_struct_name eq 'MEREP_OUTTAB_ACCOUNTING' or      "view: account assignment
+        im_struct_name eq 'MEREP_OUTTAB_PURCHDOC_REL' or   "view mE28
+        im_struct_name eq 'MEREP_OUTTAB_EBAN'. "Requisião ME5A
+
+
+  r_po_features = new zcl_po_features( ).
+
+* loop at the output table and assign a field symbol
+  loop at ch_outtab assigning field-symbol(<fs_outtab>).
+
+    "Requisições = Verifica se o item da RC é urgente
+    if im_struct_name eq 'MEREP_OUTTAB_EBAN'. "Requisião ME5A
+
+
+      assign component 'PLIFZ' of structure <fs_outtab> to <fs_plifz>.
+      check sy-subrc = 0.
+
+      assign component 'EEIND' of structure <fs_outtab> to <fs_eeind>.
+      check sy-subrc = 0.
+
+      assign component 'BADAT' of structure <fs_outtab> to <fs_badat>.
+      check sy-subrc = 0.
+
+      assign component 'WARNEMERGENCY' of structure <fs_outtab> to <fs_warnemergency>.
+      check sy-subrc = 0.
+
+      assign component 'DESCREMERGENCY' of structure <fs_outtab> to <fs_descremergency>.
+      check sy-subrc = 0.
+
+      <fs_descremergency> = r_po_features->set_urgency( exporting i_dtcreate =  <fs_badat> i_dtdelivery = conv sy-datum( <fs_eeind> ) i_deadline = <fs_plifz> ).
+      if <fs_descremergency> is not initial.
+        <fs_warnemergency> = icon_led_red.
+      endif.
+
+    endif.
+
+*-- assign the purchasing document number to a field symbol
+    assign component 'EBELN' of structure <fs_outtab> to <fs_ebeln>.
+    check sy-subrc = 0.
+*-- assign the purchasing document item number to a field symbol
+    assign component 'EBELP' of structure <fs_outtab> to <fs_ebelp>.
+    check sy-subrc = 0.
+
+    assign component 'DTAPPROVALS' of structure <fs_outtab> to <fs_dtapprovals>.
+    check sy-subrc = 0.
+    <fs_dtapprovals> = r_po_features->get_date_approvals( i_ebeln = <fs_ebeln> ).
+
+
+    clear ls_taxes.
+    r_po_features->get_taxes_value( exporting i_ebeln = <fs_ebeln> i_ebelp = <fs_ebelp>  importing e_taxes = ls_taxes ).
+
+    assign component 'UNITNETTAX' of structure <fs_outtab> to <fs_unitnettax>.
+    check sy-subrc = 0.
+    try.
+        <fs_unitnettax> = ls_taxes-netpr / ls_taxes-menge.
+      catch cx_sy_zerodivide.
+
+    endtry.
+
+    assign component 'UNITPRICE' of structure <fs_outtab> to <fs_unitprice>.
+    check sy-subrc = 0.
+    try.
+        <fs_unitprice> = ls_taxes-netwr / ls_taxes-menge.
+      catch cx_sy_zerodivide.
+
+    endtry.
+
+    assign component 'NETTAX' of structure <fs_outtab> to <fs_nettax>.
+    check sy-subrc = 0.
+    <fs_nettax> =  ls_taxes-netpr.
+
+    assign component 'NETBUDGET' of structure <fs_outtab> to <fs_netbudget>.
+    check sy-subrc = 0.
+    <fs_netbudget> = ls_taxes-netbgt.
+
+    assign component 'WARNBUDGET' of structure <fs_outtab> to <fs_warnbudget>.
+    check sy-subrc = 0.
+    if ls_taxes-netpr > ls_taxes-netbgt.
+      <fs_warnbudget> = icon_led_yellow.
+    endif.
+
+    assign component 'SUPLLIERVAL' of structure <fs_outtab> to <fs_supplierval>.
+    check sy-subrc = 0.
+    <fs_supplierval> = ls_taxes-zgpb.
+
+
+
+
+    assign component 'DISCOUNT' of structure <fs_outtab> to <fs_discount>.
+    check sy-subrc = 0.
+    <fs_discount> = ls_taxes-nfdis.
+
+    assign component 'FREIGTH' of structure <fs_outtab> to <fs_freigth>.
+    check sy-subrc = 0.
+    <fs_freigth> = ls_taxes-nffre.
+
+    assign component 'ICMSVAL' of structure <fs_outtab> to <fs_icmsval>.
+    check sy-subrc = 0.
+    <fs_icmsval> = ls_taxes-vicms.
+
+    assign component 'ICMSSTVAL' of structure <fs_outtab> to <fs_icmsstval>.
+    check sy-subrc = 0.
+    <fs_icmsstval> = ls_taxes-vicmsst.
+
+    assign component 'IPIVAL' of structure <fs_outtab> to <fs_ipival>.
+    check sy-subrc = 0.
+    <fs_ipival> = ls_taxes-vipi.
+
+    assign component 'PISVAL' of structure <fs_outtab> to <fs_pisval>.
+    check sy-subrc = 0.
+    <fs_pisval> = ls_taxes-vpis.
+
+    assign component 'COFINSVAL' of structure <fs_outtab> to <fs_cofinsval>.
+    check sy-subrc = 0.
+    <fs_cofinsval> = ls_taxes-vcofins.
+
+
+    assign component 'NFNETT' of structure <fs_outtab> to <fs_nfnett>.
+    check sy-subrc = 0.
+    <fs_nfnett> = ls_taxes-nfnet.
+
+    assign component 'NFTOT' of structure <fs_outtab> to <fs_nftot>.
+    check sy-subrc = 0.
+    <fs_nftot> = ls_taxes-nftot.
+
+    assign component 'CONDPAY' of structure <fs_outtab> to <fs_condpay>.
+    check sy-subrc = 0.
+    <fs_condpay> = ls_taxes-condpay.
+
+    assign component 'REGIO' of structure <fs_outtab> to <fs_regio>.
+    check sy-subrc = 0.
+    <fs_regio> = ls_taxes-regio.
+
+    "Taxa de cambio
+    assign component 'WKURS' of structure <fs_outtab> to <fs_wkurs>.
+    check sy-subrc = 0.
+    <fs_wkurs> =  ls_taxes-wkurs.
+
+
+**-- assign the manufacturer part number to a field symbol
+*    ASSIGN COMPONENT 'EMATN' OF STRUCTURE <fs_outtab> TO <fs_material>.
+*    CHECK sy-subrc = 0.
+*
+**-- read the corresponding purchasing document item
+*    CALL FUNCTION 'ME_EKPO_SINGLE_READ'
+*      EXPORTING
+*        pi_ebeln         = <fs_ebeln>
+*        pi_ebelp         = <fs_ebelp>
+*      IMPORTING
+*        po_ekpo          = ls_ekpo
+*      EXCEPTIONS
+*        no_records_found = 1
+*        OTHERS           = 2.
+*    CHECK sy-subrc = 0.
+*
+**-- assign the inventory managed material to the field "Material" in the output table
+*    <fs_material> = ls_ekpo-matnr.
+
+  endloop.
+
+endmethod.
+ENDCLASS.
