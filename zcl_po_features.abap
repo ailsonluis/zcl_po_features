@@ -379,43 +379,7 @@ CLASS ZCL_PO_FEATURES IMPLEMENTATION.
     endtry.
 
     "Valor de budget
-    "remover estre trecho quando a ELO corrigir e subir as requests
-
-*    select single TABNAME from DD02L into @data(vl_table_exists) where TABNAME eq 'ZMMT010'.
-*    if  vl_table_exists is not INITIAL.
-*    try.
-*        data(ls_budget) = me->get_last_price_budget( exporting i_matnr = ls_ekpo-matnr
-*                                             i_werks = ls_ekpo-werks
-*                                             i_date = ls_ekko-aedat ).
-*
-*        "se moeda do pedido x moeda do budget
-*        "converte conforme a moeda do pedido
-*        if ls_budget-waers <> ls_ekko-waers.
-*          data(lv_original_amt) = conv cms_dte_original_amt( ls_budget-netpr ).
-*          call function 'CMS_API_CURR_CONV'
-*            exporting
-*              i_original_curr = ls_budget-waers
-*              i_original_amt  = lv_original_amt
-*              i_result_curr   = ls_ekko-waers
-*              i_rate_type     = 'M'
-*              i_conv_date     = ls_ekko-aedat
-*            importing
-*              e_conv_amt      = lv_conv_amt
-*              e_rate          = lv_rate.
-*
-*          if sy-subrc ne 0.
-*            lv_conv_amt = 0.
-*          endif.
-*            e_taxes-netbgt = ( lv_conv_amt * ls_ekpo-menge ) / ls_budget-peinh.
-*
-*        else.
-*            e_taxes-netbgt = ( LS_BUDGET-NETPR * ls_ekpo-menge ) / ls_budget-peinh.
-*        endif.
-*
-*      catch cx_sy_itab_line_not_found.
-*
-*     endtry.
-*    endif.
+    
 
      "Valor sem impostos do budget
     try.
